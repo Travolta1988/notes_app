@@ -1,0 +1,25 @@
+{
+  "notes": [
+    {
+      "id": 1,
+      "title": "Develop flutter app",
+      "date": "15/12/2023",
+      "content": "I need to develop flutter app",
+      "tags": ["important", "flutter", "app"]
+    },
+    {
+      "id": 2,
+      "title": "Meeting with client",
+      "date": "20/12/2023",
+      "content": "Discuss project requirements and timeline",
+      "tags": ["meeting", "client", "project"]
+    },
+    {
+      "id": 3,
+      "title": "Learn BLoC pattern",
+      "date": "25/12/2023",
+      "content": "Study Flutter BLoC state management pattern",
+      "tags": ["flutter", "bloc", "learning"]
+    }
+  ]
+}
