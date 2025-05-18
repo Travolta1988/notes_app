@@ -17,12 +17,19 @@ class NotesProvider extends ChangeNotifier {
   List<Note> get visibleNotes => _visibleNotes;
   List<String> get tags => _tags;
   String? get activeTag => _activeTag;
-  bool get isLoading => _allNotes.isEmpty;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+  set isLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
 
   Future<void> loadNotes() async {
+    isLoading = true;
     try {
       _allNotes = await repository.loadNotes();
       _visibleNotes = _allNotes;
+      isLoading = false;
       _extractTags();
       notifyListeners();
     } catch (e) {
@@ -33,7 +40,7 @@ class NotesProvider extends ChangeNotifier {
   Future<void> deleteNote(Note note) async {
     _allNotes.removeWhere((n) => n.id == note.id);
     _visibleNotes.removeWhere((n) => n.id == note.id);
-    // await repository.saveNotes(_allNotes);
+    await repository.saveNotes(_allNotes);
     _extractTags();
     notifyListeners();
   }
@@ -43,7 +50,7 @@ class NotesProvider extends ChangeNotifier {
     
     if (index != -1) {
       _allNotes[index] = note;
-      // await repository.saveNotes(_allNotes);
+      await repository.saveNotes(_allNotes);
       _extractTags();
       notifyListeners();
     }
@@ -54,7 +61,7 @@ class NotesProvider extends ChangeNotifier {
     if (_activeTag != null || note.tags.contains(_activeTag)) {
       _visibleNotes.add(note);
     }
-    // await repository.saveNotes(_allNotes);
+    await repository.saveNotes(_allNotes);
     _extractTags();
     notifyListeners();
   }
