@@ -16,14 +16,22 @@ class NotesRepository {
   }
 
   Future<List<Note>> loadNotes() async {
+    try {
       final file = await _localFile;
-      final contents = await file.readAsString();
-      final data = json.decode(contents);
-      final notes = (data['notes'] as List).map((note) {
-        return Note.fromJson(note);
-      }).toList();
-      
-      return notes;
+      if (await file.exists()) {
+        final contents = await file.readAsString();
+        final data = json.decode(contents);
+        final notes = (data['notes'] as List).map((note) => (Note.fromJson(note))).toList();
+        return notes;
+      } else {
+        await file.writeAsString(json.encode({'notes': []}));
+        return [];
+      }
+    } catch (e) {
+      print('Error loading notes: $e');
+      // Return empty list on error
+      return [];
+    }
   }
 
   Future<void> addNote(Note note) async {
