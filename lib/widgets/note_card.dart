@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:notes_app/bloc/notes_bloc.dart';
 import 'package:notes_app/models/note.dart';
-import '../models/notes_provider.dart';
-import 'package:provider/provider.dart';
+import '../bloc/notes_event.dart';
 import 'add_note_form.dart';
+import '../bloc/notes_state.dart';
+
 
 class ActionButtons extends StatelessWidget {
   final VoidCallback onEdit;
@@ -63,8 +66,9 @@ class NoteCard extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300, width: 1.0),
         borderRadius: BorderRadius.circular(12.0),
       ),
-      child: Consumer<NotesProvider>(
-        builder: (context, notesProvider, child) {
+      child: BlocConsumer<NotesBloc, NotesState>(
+        listener: (context, state) => {},
+        builder: (context, state) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -95,26 +99,19 @@ class NoteCard extends StatelessWidget {
                         showModalBottomSheet<void>(
                           context: context,
                           builder: (BuildContext context) {
-                            return AddNoteForm(
-                              notesProvider,
-                              note: Note(
-                                id: id,
-                                title: title,
-                                content: content,
-                                date: date,
-                                tags: tags,
-                              ),
-                            );
+                            return AddNoteForm(id: id);
                           },
                         );
                       },
                       onDelete: () {
-                        notesProvider.deleteNote(Note(
-                          id: id,
-                          title: title,
-                          content: content,
-                          date: date,
-                          tags: tags,
+                        context.read<NotesBloc>().add(DeleteNoteEvent(
+                          Note(
+                            id: id,
+                            title: title,
+                            content: content,
+                            date: date,
+                            tags: tags,
+                          )
                         ));
                       },
                     ),

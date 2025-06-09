@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:notes_app/bloc/notes_state.dart';
 import '../models/note.dart';
-import '../models/notes_provider.dart';
+import 'package:provider/provider.dart';
+import '../bloc/notes_bloc.dart';
+import '../bloc/notes_event.dart';
 
 class AddNoteForm extends StatefulWidget {
-  final NotesProvider notesProvider;
-  final Note? note;
   
-  const AddNoteForm(this.notesProvider, {super.key, this.note});
+  const AddNoteForm({super.key, this.id});
+  
+  final int? id;
   
   @override
-  _AddNoteFormState createState() => _AddNoteFormState();
+  State<AddNoteForm> createState() => _AddNoteFormState();
 }
 
 class _AddNoteFormState extends State<AddNoteForm> {
@@ -25,15 +28,25 @@ class _AddNoteFormState extends State<AddNoteForm> {
   late final TextEditingController dateController;
   late final TextEditingController tagsController;
   
+  late final Note _note = context.read<NotesBloc>().state.allNotes.firstWhere(
+    (note) {
+      return note.id == widget.id;
+    },
+    orElse: () => NotesState.initial().allNotes.firstWhere(
+      (note) => note.id == widget.id,
+      orElse: () => Note(id: 0, title: '', content: '', date: '', tags: []),
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
-    note = widget.note;
-    id = note?.id;
-    title = note?.title;
-    content = note?.content;
-    date = note?.date;
-    tags = note?.tags;
+    note = null;
+    id = widget.id;
+    title = _note.title;
+    content = _note.content;
+    date = _note.date;
+    tags = _note.tags;
     titleController = TextEditingController(text: title);
     contentController = TextEditingController(text: content);
     dateController = TextEditingController(text: date);
@@ -118,29 +131,26 @@ class _AddNoteFormState extends State<AddNoteForm> {
                   return;
                 }
 
+                final tags = tagsController.text.split(',')
+                    .map((tag) => tag.trim())
+                    .where((tag) => tag.isNotEmpty)
+                    .toList();
+
                 if (id != null) {
-                  widget.notesProvider.editNote(
+                  context.read<NotesBloc>().add(EditNoteEvent(
                     Note(
                       id: id!,
                       title: titleController.text,
                       content: contentController.text,
                       date: dateController.text,
-                      tags: tagsController.text.split(',')
-                          .map((tag) => tag.trim())
-                          .where((tag) => tag.isNotEmpty)
-                          .toList(),
+                      tags: tags,
                     )
-                  );
+                  ));
                   Navigator.pop(context);
                   return;
                 }
 
-                final tags = tagsController.text.split(',')
-                    .map((tag) => tag.trim())
-                    .where((tag) => tag.isNotEmpty)
-                    .toList();
-                
-                widget.notesProvider.addNote(
+                context.read<NotesBloc>().add(AddNoteEvent(
                   Note(
                     id: DateTime.now().millisecondsSinceEpoch,
                     title: titleController.text,
@@ -148,7 +158,8 @@ class _AddNoteFormState extends State<AddNoteForm> {
                     date: dateController.text,
                     tags: tags,
                   )
-                );
+                ));
+                
                 Navigator.pop(context);
               },
             )

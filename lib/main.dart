@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../repository/notes_repository.dart';
-import '../models/notes_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../widgets/add_note_form.dart';
 import '../widgets/note_card.dart';
+import '../bloc/notes_bloc.dart';
+import '../bloc/notes_event.dart';
+import '../bloc/notes_state.dart';
 
 void main() {
   runApp(NotesApp());
 }
 
 class NotesApp extends StatelessWidget {
-  final NotesRepository repository = NotesRepository();
+  const NotesApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => NotesProvider(repository),
+    return BlocProvider(
+      create: (context) => NotesBloc(),
       child: MaterialApp(
         title: 'Нотатки',
         home: NotesScreen(),
@@ -24,8 +25,11 @@ class NotesApp extends StatelessWidget {
   }
 }
 class NotesScreen extends StatelessWidget {
+  const NotesScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
+    context.read<NotesBloc>().add(const LoadNotesEvent());
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -39,28 +43,34 @@ class NotesScreen extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.amber.shade300,
         actions: [
-          Consumer<NotesProvider>(
-            builder: (context, notesProvider, child) {
-              if (!notesProvider.isLoading) {
-                return DropdownButton<String>(
-                  hint: Text('Всі теги'),
-                  items: notesProvider.tags.map((tag) {
-                    return DropdownMenuItem<String>(
-                      value: tag,
-                      child: Text(tag),
-                    );
-                  }).toList(),
+          BlocBuilder<NotesBloc, NotesState>(
+            builder: (context, state) {
+              final tagsList = state.tags.map((tag) {
+                return DropdownMenuItem<String>(
+                  value: tag,
+                  child: Text(tag),
+                );
+              }).toList();
+
+              if (state.tags.isNotEmpty) {
+                tagsList.insert(0, DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('Всі теги'),
+                ));
+              }
+
+              return DropdownButton<String>(
+                  hint: Text('Вибрати тег'),
+                  items: tagsList,
                   onChanged: (value) {
                     if (value == null) {
-                      notesProvider.clearFilter();
+                      context.read<NotesBloc>().add(const ClearFilterEvent());
                     } else {
-                      notesProvider.filterByTag(value);
+                      context.read<NotesBloc>().add(FilterByTagEvent(value));
                     }
                   },
+                  value: state.activeTag,
                 );
-              } else {
-                return Container();
-              }
             },
           ),
         ],
@@ -69,13 +79,14 @@ class NotesScreen extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              child: Consumer<NotesProvider>(
-                builder: (context, notesProvider, child) {
-                  if (!notesProvider.isLoading) {
-                    return ListView.builder(
-                      itemCount: notesProvider.visibleNotes.length,
+              child: BlocConsumer<NotesBloc, NotesState>(
+                listener: (context, state) {},
+                builder: (context, state) {
+                  return ListView.builder(
+                      itemCount: state.visibleNotes.length,
                       itemBuilder: (context, index) {
-                        final note = notesProvider.visibleNotes[index];
+                        final note = state.visibleNotes[index];
+
                         return NoteCard(
                           id: note.id,
                           title: note.title,
@@ -85,16 +96,12 @@ class NotesScreen extends StatelessWidget {
                         );
                       },
                     );
-                  } else {
-                    return Center(child: CircularProgressIndicator());
-                  }
                 },
               ),
             ),
-            Consumer<NotesProvider>(
-              builder: (context, notesProvider, child) {
-                if (!notesProvider.isLoading) {
-                  return Container(
+            BlocBuilder<NotesBloc, NotesState>(
+              builder: (context, state) {
+                return Container(
                     padding: EdgeInsets.symmetric(horizontal: 10.0),
                     child: ElevatedButton.icon(
                       icon: Icon(Icons.add),
@@ -108,15 +115,12 @@ class NotesScreen extends StatelessWidget {
                         showModalBottomSheet<void>(
                           context: context,
                           builder: (BuildContext context) {
-                            return AddNoteForm(notesProvider);
+                            return AddNoteForm();
                           },
                         );
                       },
                     ),
                   );
-                } else {
-                  return Container();
-                }
               },
             ),
           ],
