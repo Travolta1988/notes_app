@@ -26,14 +26,15 @@ class ActionButtons extends StatelessWidget {
         FloatingActionButton(
           onPressed: onEdit,
           mini: true,
-          backgroundColor: Colors.black26,
-          child: Icon(Icons.edit, color: Colors.amber,),
+          backgroundColor: Colors.white,
+          child: Icon(Icons.edit, color: Colors.green.shade600),
         ),
+        const SizedBox(width: 8.0),
         FloatingActionButton(
           onPressed: onDelete,
           mini: true,
-          backgroundColor: Colors.black26,
-          child: Icon(Icons.delete, color: Colors.amber),
+          backgroundColor: Colors.green.shade50,
+          child: Icon(Icons.delete, color: Colors.green.shade300),
         ),
       ],
     );
@@ -59,27 +60,48 @@ class NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.all(15.0),
-      padding: EdgeInsets.all(0.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.all(0.0),
       width: double.infinity,
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300, width: 1.0),
-        borderRadius: BorderRadius.circular(12.0),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.shade200,
+            blurRadius: 8.0,
+            offset: const Offset(0, 4),
+            spreadRadius: 1.0,
+          ),
+        ],
+        border: Border.all(color: Colors.green.shade100, width: 1.0),
       ),
       child: BlocConsumer<NotesBloc, NotesState>(
-        listener: (context, state) => {},
+        listener: (context, state) {
+          // Показуємо повідомлення про успішні операції
+          if (state.status == NotesStatus.success) {
+            // Повідомлення показуються на головному екрані
+          }
+        },
         builder: (context, state) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade300,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12.0),
-                    topRight: Radius.circular(12.0),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.green.shade300,
+                      Colors.green.shade400,
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16.0),
+                    topRight: Radius.circular(16.0),
                   ),
                 ),
                 child: Row(
@@ -87,72 +109,102 @@ class NoteCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: TextStyle(
-                          color: Colors.black,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 18.0,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     ActionButtons(
                       onEdit: () {
                         showModalBottomSheet<void>(
                           context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
                           builder: (BuildContext context) {
                             return AddNoteForm(id: id);
                           },
                         );
                       },
-                      onDelete: () {
-                        context.read<NotesBloc>().add(DeleteNoteEvent(
-                          Note(
-                            id: id,
-                            title: title,
-                            content: content,
-                            date: date,
-                            tags: tags,
-                          )
-                        ));
-                      },
+                      onDelete: () => _showDeleteConfirmation(context),
                     ),
                   ],
                 ),
               ),
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(12.0),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      date,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 12.0,
-                      ),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 16.0,
+                          color: Colors.green.shade600,
+                        ),
+                        const SizedBox(width: 8.0),
+                        Text(
+                          date,
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 8.0),
+                    const SizedBox(height: 12.0),
                     Text(
                       content,
                       style: TextStyle(
                         fontSize: 16.0,
+                        height: 1.5,
+                        color: Colors.grey.shade800,
                       ),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    Padding(padding: EdgeInsets.symmetric(vertical: 8.0)),
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 0,
-                      children: tags.map((tag) {
-                        return Chip(
-                          avatar: Icon(
-                            Icons.tag,
-                            size: 16.0,
-                            color: Colors.grey.shade700,
-                          ),
-                          label: Text(tag),
-                        );
-                      }).toList(),
-                    ),
+                    if (tags.isNotEmpty) ...[
+                      const SizedBox(height: 16.0),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: tags.map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(20.0),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.tag,
+                                  size: 14.0,
+                                  color: Colors.green.shade600,
+                                ),
+                                const SizedBox(width: 4.0),
+                                Text(
+                                  tag,
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -161,5 +213,85 @@ class NoteCard extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange.shade600),
+              const SizedBox(width: 8.0),
+              const Text('Підтвердження'),
+            ],
+          ),
+          content: Text('Ви дійсно хочете видалити нотатку "$title"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Скасувати',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteNote(context);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red.shade400,
+                backgroundColor: Colors.green.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              child: const Text('Видалити'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteNote(BuildContext context) {
+    try {
+      BlocProvider.of<NotesBloc>(context, listen: false).add(DeleteNoteEvent(
+        Note(
+          id: id,
+          title: title,
+          content: content,
+          date: date,
+          tags: tags,
+        ),
+      ));
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Нотатку видалено'),
+          backgroundColor: Colors.green.shade600,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Помилка видалення: ${e.toString()}'),
+          backgroundColor: Colors.red.shade600,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+        ),
+      );
+    }
   }
 }

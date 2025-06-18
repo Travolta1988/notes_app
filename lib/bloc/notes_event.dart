@@ -1,7 +1,7 @@
-
 import 'package:flutter/cupertino.dart';
 import 'package:notes_app/models/note.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:notes_app/bloc/notes_exceptions.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,14 +10,21 @@ abstract class NotesEvent {
   const NotesEvent();
 
   Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-
-    return directory.path;
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      return directory.path;
+    } catch (e) {
+      throw const FileSystemException('Не удалось отримати шлях до директорії додатку');
+    }
   }
 
   Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/notes.json');
+    try {
+      final path = await _localPath;
+      return File('$path/notes.json');
+    } catch (e) {
+      throw const FileSystemException('Не удалось створити файл нотаток');
+    }
   }
 }
 
@@ -27,17 +34,41 @@ class LoadNotesEvent extends NotesEvent {
   Future<List<Note>> loadNotes() async {
     try {
       final file = await _localFile;
+      
       if (await file.exists()) {
-        final contents = await file.readAsString();
-        final data = json.decode(contents);
-        final notes = (data['notes'] as List).map((note) => (Note.fromJson(note))).toList();
-        return notes;
+        try {
+          final contents = await file.readAsString();
+          final data = json.decode(contents);
+          
+          if (data is! Map<String, dynamic> || !data.containsKey('notes')) {
+            throw const ValidationException('Невірний формат файлу нотаток');
+          }
+          
+          final notesList = data['notes'] as List;
+          final notes = notesList.map((noteJson) {
+            try {
+              return Note.fromJson(noteJson);
+            } catch (e) {
+              throw ValidationException('Помилка парсингу нотатки: ${e.toString()}');
+            }
+          }).toList();
+          
+          return notes;
+        } catch (e) {
+          if (e is ValidationException) rethrow;
+          throw LoadNotesException('Помилка читання файлу: ${e.toString()}');
+        }
       } else {
-        await file.writeAsString(json.encode({'notes': []}));
-        return [];
+        try {
+          await file.writeAsString(json.encode({'notes': []}));
+          return [];
+        } catch (e) {
+          throw LoadNotesException('Не удалось створити файл нотаток: ${e.toString()}');
+        }
       }
     } catch (e) {
-      return [];
+      if (e is NotesException) rethrow;
+      throw LoadNotesException('Неочікувана помилка: ${e.toString()}');
     }
   }
 }
@@ -58,15 +89,35 @@ class AddNoteEvent extends NotesEvent {
   const AddNoteEvent(this.note);
 
   Future<void> addNote(Note note) async {
-    final file = await _localFile;
-    final contents = await file.readAsString();
-    final data = json.decode(contents);
-    final notes = (data['notes'] as List).map((note) {
-      return Note.fromJson(note);
-    }).toList();
-    notes.add(note);
-    final updatedData = json.encode({'notes': notes.map((note) => note.toJson()).toList()});
-    await file.writeAsString(updatedData);
+    try {
+      // Валидация заметки
+      if (note.title.trim().isEmpty) {
+        throw const ValidationException('Назва нотатки не може бути порожньою');
+      }
+      
+      final file = await _localFile;
+      final contents = await file.readAsString();
+      final data = json.decode(contents);
+      
+      if (data is! Map<String, dynamic> || !data.containsKey('notes')) {
+        throw const ValidationException('Невірний формат файлу нотаток');
+      }
+      
+      final notes = (data['notes'] as List).map((noteJson) {
+        try {
+          return Note.fromJson(noteJson);
+        } catch (e) {
+          throw ValidationException('Помилка парсингу існуючої нотатки: ${e.toString()}');
+        }
+      }).toList();
+      
+      notes.add(note);
+      final updatedData = json.encode({'notes': notes.map((note) => note.toJson()).toList()});
+      await file.writeAsString(updatedData);
+    } catch (e) {
+      if (e is NotesException) rethrow;
+      throw SaveNotesException('Неочікувана помилка при збереженні: ${e.toString()}');
+    }
   }
 }
 
@@ -76,17 +127,39 @@ class EditNoteEvent extends NotesEvent {
   const EditNoteEvent(this.note);
 
   Future<void> editNote(Note note) async {
-    final file = await _localFile;
-    final contents = await file.readAsString();
-    final data = json.decode(contents);
-    final notes = (data['notes'] as List).map((note) {
-      return Note.fromJson(note);
-    }).toList();
-    final index = notes.indexWhere((n) => n.id == note.id);
-    if (index != -1) {
+    try {
+      // Валидация заметки
+      if (note.title.trim().isEmpty) {
+        throw const ValidationException('Назва нотатки не може бути порожньою');
+      }
+      
+      final file = await _localFile;
+      final contents = await file.readAsString();
+      final data = json.decode(contents);
+      
+      if (data is! Map<String, dynamic> || !data.containsKey('notes')) {
+        throw const ValidationException('Невірний формат файлу нотаток');
+      }
+      
+      final notes = (data['notes'] as List).map((noteJson) {
+        try {
+          return Note.fromJson(noteJson);
+        } catch (e) {
+          throw ValidationException('Помилка парсингу існуючої нотатки: ${e.toString()}');
+        }
+      }).toList();
+      
+      final index = notes.indexWhere((n) => n.id == note.id);
+      if (index == -1) {
+        throw const SaveNotesException('Нотатку не знайдено');
+      }
+      
       notes[index] = note;
       final updatedData = json.encode({'notes': notes.map((note) => note.toJson()).toList()});
       await file.writeAsString(updatedData);
+    } catch (e) {
+      if (e is NotesException) rethrow;
+      throw SaveNotesException('Неочікувана помилка при редагуванні: ${e.toString()}');
     }
   }
 }
@@ -97,14 +170,35 @@ class DeleteNoteEvent extends NotesEvent {
   const DeleteNoteEvent(this.note);
 
   Future<void> deleteNote(Note note) async {
-    final file = await _localFile;
-    final contents = await file.readAsString();
-    final data = json.decode(contents);
-    final notes = (data['notes'] as List).map((note) {
-      return Note.fromJson(note);
-    }).toList();
-    notes.removeWhere((n) => n.id == note.id);
-    final updatedData = json.encode({'notes': notes.map((note) => note.toJson()).toList()});
-    await file.writeAsString(updatedData);
+    try {
+      final file = await _localFile;
+      final contents = await file.readAsString();
+      final data = json.decode(contents);
+      
+      if (data is! Map<String, dynamic> || !data.containsKey('notes')) {
+        throw const ValidationException('Невірний формат файлу нотаток');
+      }
+      
+      final notes = (data['notes'] as List).map((noteJson) {
+        try {
+          return Note.fromJson(noteJson);
+        } catch (e) {
+          throw ValidationException('Помилка парсингу існуючої нотатки: ${e.toString()}');
+        }
+      }).toList();
+      
+      final initialLength = notes.length;
+      notes.removeWhere((n) => n.id == note.id);
+      
+      if (notes.length == initialLength) {
+        throw const DeleteNotesException('Нотатку не знайдено');
+      }
+      
+      final updatedData = json.encode({'notes': notes.map((note) => note.toJson()).toList()});
+      await file.writeAsString(updatedData);
+    } catch (e) {
+      if (e is NotesException) rethrow;
+      throw DeleteNotesException('Неочікувана помилка при видаленні: ${e.toString()}');
+    }
   }
 }
